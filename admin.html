@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ניהול שאלות</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#f0f2f7; --card:#fff; --primary:#3b5bdb; --primary-light:#eef2ff;
+    --danger:#e03131; --danger-light:#fff5f5; --success:#2f9e44; --success-light:#ebfbee;
+    --border:#e3e8f0; --text:#1a1d23; --muted:#6b7280; --input-bg:#f8fafc;
+    --sun:#FFD93D;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+  .topbar{background:var(--primary);color:white;padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(59,91,219,0.3);position:sticky;top:0;z-index:100;}
+  .topbar h1{font-size:1.2rem;font-weight:700;display:flex;align-items:center;gap:10px;}
+  .topbar .stats{font-size:0.9rem;opacity:0.85;}
+
+  .layout{display:grid;grid-template-columns:400px 1fr;gap:24px;padding:24px;max-width:1200px;margin:0 auto;}
+
+  .card{background:var(--card);border-radius:16px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,0.06);border:1px solid var(--border);}
+  .card-title{font-size:1rem;font-weight:700;color:var(--text);margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:8px;}
+
+  .form-group{margin-bottom:16px;}
+  label{display:block;font-size:0.82rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;}
+  input[type="text"],select,textarea{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:'Heebo',sans-serif;font-size:0.95rem;background:var(--input-bg);color:var(--text);transition:border-color 0.2s,box-shadow 0.2s;outline:none;}
+  input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(59,91,219,0.12);background:white;}
+  textarea{resize:vertical;min-height:70px;direction:rtl;}
+
+  .options-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .correct-select select{background:var(--success-light);border-color:#a9e3b7;color:var(--success);font-weight:700;}
+
+  .diff-group{display:flex;gap:8px;}
+  .diff-pill{flex:1;text-align:center;padding:8px;border-radius:8px;border:2px solid var(--border);cursor:pointer;font-size:0.9rem;font-weight:600;transition:all 0.15s;}
+  .diff-pill input{display:none;}
+  .diff-pill.easy:has(input:checked){background:#ebfbee;border-color:#2f9e44;color:#2f9e44;}
+  .diff-pill.medium:has(input:checked){background:#fff4e0;border-color:#e67700;color:#e67700;}
+  .diff-pill.hard:has(input:checked){background:#fff5f5;border-color:#e03131;color:#e03131;}
+  .diff-pill:not(:has(input:checked)):hover{background:var(--bg);}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:10px;border:none;font-family:'Heebo',sans-serif;font-size:0.95rem;font-weight:600;cursor:pointer;transition:all 0.15s;}
+  .btn-primary{background:var(--primary);color:white;width:100%;justify-content:center;padding:12px;font-size:1rem;}
+  .btn-primary:hover{background:#2f4ac7;transform:translateY(-1px);}
+  .btn-primary:disabled{opacity:0.6;cursor:not-allowed;transform:none;}
+  .btn-ghost{background:transparent;color:var(--muted);border:1.5px solid var(--border);padding:8px 14px;font-size:0.85rem;}
+  .btn-ghost:hover{background:var(--bg);color:var(--text);}
+  .btn-danger{background:var(--danger-light);color:var(--danger);border:1.5px solid #ffc9c9;padding:6px 12px;font-size:0.82rem;}
+  .btn-danger:hover{background:#ffd8d8;}
+  .btn-edit{background:var(--primary-light);color:var(--primary);border:1.5px solid #c5d3fb;padding:6px 12px;font-size:0.82rem;}
+  .btn-edit:hover{background:#dce5ff;}
+
+  /* Illustration preview in form */
+  .ill-preview-wrap{margin-top:16px;border-radius:12px;overflow:hidden;border:1.5px solid var(--border);background:#f8faff;}
+  .ill-preview-header{padding:8px 14px;font-size:0.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid var(--border);}
+  .ill-preview-body{padding:16px;display:flex;align-items:center;justify-content:center;min-height:120px;}
+  .ill-preview-body svg{max-width:180px;max-height:120px;}
+  .ill-placeholder{color:#ccd;font-size:2rem;}
+  .ill-generating{display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--muted);font-size:0.85rem;}
+  .ill-spinner{width:28px;height:28px;border:3px solid #dde;border-top-color:var(--primary);border-radius:50%;animation:spin 0.7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:white;padding:12px 24px;border-radius:50px;font-size:0.95rem;font-weight:600;z-index:999;transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1);white-space:nowrap;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+  .toast.success{background:var(--success);}
+  .toast.error{background:var(--danger);}
+
+  .search-bar{display:flex;gap:10px;margin-bottom:16px;align-items:center;}
+  .search-bar input{margin:0;}
+  .filter-pills{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+  .filter-pill{padding:5px 14px;border-radius:20px;border:1.5px solid var(--border);background:white;font-size:0.82rem;font-weight:600;cursor:pointer;color:var(--muted);transition:all 0.15s;}
+  .filter-pill.active{background:var(--primary);border-color:var(--primary);color:white;}
+
+  .questions-list{display:flex;flex-direction:column;gap:10px;}
+  .q-item{background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;align-items:flex-start;gap:12px;transition:box-shadow 0.15s;}
+  .q-item:hover{box-shadow:0 4px 16px rgba(0,0,0,0.08);}
+  .q-item.editing{border-color:var(--primary);box-shadow:0 0 0 3px rgba(59,91,219,0.12);}
+
+  /* Thumbnail in list */
+  .q-thumb{width:52px;height:52px;border-radius:10px;background:#f0f4ff;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;}
+  .q-thumb svg{width:44px;height:44px;}
+  .q-thumb .no-thumb{font-size:1.4rem;color:#ccd;}
+
+  .q-body{flex:1;}
+  .q-text{font-size:1rem;font-weight:600;color:var(--text);margin-bottom:6px;direction:ltr;text-align:right;}
+  .q-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .q-tag{padding:2px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;}
+  .q-tag.easy{background:#ebfbee;color:var(--success);}
+  .q-tag.medium{background:#fff4e0;color:#e67700;}
+  .q-tag.hard{background:#fff5f5;color:var(--danger);}
+  .q-answer{font-size:0.82rem;color:var(--muted);}
+  .q-actions{display:flex;gap:6px;flex-shrink:0;}
+
+  .empty-list{text-align:center;padding:48px 24px;color:var(--muted);}
+  .empty-list .emoji{font-size:3rem;margin-bottom:12px;}
+
+  .config-warning{background:#fff8e1;border:1.5px solid #ffe066;border-radius:12px;padding:16px 20px;margin-bottom:20px;font-size:0.9rem;color:#7a5c00;line-height:1.6;}
+  .config-warning code{background:rgba(0,0,0,0.08);padding:1px 5px;border-radius:4px;font-size:0.82rem;}
+
+  @media(max-width:800px){.layout{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>⚙️ ממשק ניהול שאלות</h1>
+  <div class="stats" id="topbar-stats">טוען...</div>
+</div>
+
+<div class="layout">
+  <!-- Form -->
+  <div>
+    <div class="card">
+      <div class="card-title" id="form-title">➕ הוספת שאלה חדשה</div>
+
+      <div id="config-warning" class="config-warning" style="display:none">
+        ⚠️ <strong>נדרשת הגדרה:</strong> פתח את הקובץ והחלף<br>
+        <code>YOUR_SUPABASE_URL</code> ו-<code>YOUR_SUPABASE_ANON_KEY</code>
+      </div>
+
+      <input type="hidden" id="edit-id">
+
+      <div class="form-group">
+        <label>שאלה</label>
+        <textarea id="f-question" placeholder="לדוגמה: 24 × 3 = ?"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>4 אפשרויות תשובה</label>
+        <div class="options-row">
+          <input type="text" id="f-a" placeholder="א">
+          <input type="text" id="f-b" placeholder="ב">
+          <input type="text" id="f-c" placeholder="ג">
+          <input type="text" id="f-d" placeholder="ד">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>✅ התשובה הנכונה</label>
+        <div class="correct-select">
+          <select id="f-correct">
+            <option value="">בחר תשובה נכונה...</option>
+            <option value="a">א</option>
+            <option value="b">ב</option>
+            <option value="c">ג</option>
+            <option value="d">ד</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>רמת קושי</label>
+        <div class="diff-group">
+          <label class="diff-pill easy"><input type="radio" name="diff" value="1" checked> קל</label>
+          <label class="diff-pill medium"><input type="radio" name="diff" value="2"> בינוני</label>
+          <label class="diff-pill hard"><input type="radio" name="diff" value="3"> קשה</label>
+        </div>
+      </div>
+
+      <!-- Illustration preview -->
+      <div class="ill-preview-wrap">
+        <div class="ill-preview-header">🎨 תצוגה מקדימה של האיור</div>
+        <div class="ill-preview-body" id="ill-preview">
+          <div class="ill-placeholder">🖼️</div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;">
+        <button class="btn btn-primary" id="submit-btn" onclick="submitForm()">
+          ➕ הוסף שאלה (+ צור איור)
+        </button>
+      </div>
+      <div style="margin-top:10px;text-align:center;">
+        <button class="btn btn-ghost" id="cancel-btn" onclick="cancelEdit()" style="display:none">ביטול עריכה</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- List -->
+  <div>
+    <div class="card">
+      <div class="card-title">📋 רשימת שאלות</div>
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="🔍  חיפוש..." oninput="renderList()">
+      </div>
+      <div class="filter-pills">
+        <div class="filter-pill active" onclick="setFilter('all',this)">הכל</div>
+        <div class="filter-pill" onclick="setFilter('1',this)">קל</div>
+        <div class="filter-pill" onclick="setFilter('2',this)">בינוני</div>
+        <div class="filter-pill" onclick="setFilter('3',this)">קשה</div>
+      </div>
+      <div class="questions-list" id="questions-list">
+        <div class="empty-list"><div class="emoji">⏳</div><div>טוען...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// =============================================
+// ⚙️ הגדרות חיבור – החלף את הערכים האלה
+// =============================================
+const SUPABASE_URL = 'https://pswzrkekgbyipeugamqd.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzd3pya2VrZ2J5aXBldWdhbXFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTM4MjMsImV4cCI6MjA5MDQ4OTgyM30.HdaM7xXxVom0YwX50Pw4-ODcBGilRNiJz9fY5p29-Os';
+const TABLE = 'questions';
+// =============================================
+
+const configured = SUPABASE_URL !== 'YOUR_SUPABASE_URL';
+const hdrs = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`,
+  'Content-Type': 'application/json',
+  'Prefer': 'return=representation'
+};
+const optKeys = { a:'option_a', b:'option_b', c:'option_c', d:'option_d' };
+const diffMap = { 1:['easy','קל'], 2:['medium','בינוני'], 3:['hard','קשה'] };
+
+let allQuestions = [], activeFilter = 'all';
+
+// ── Toast ─────────────────────────────────
+let toastTimer;
+function showToast(msg, type='success'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ── Load questions ────────────────────────
+async function loadQuestions(){
+  if(!configured){
+    document.getElementById('config-warning').style.display='block';
+    document.getElementById('questions-list').innerHTML=`<div class="empty-list"><div class="emoji">⚙️</div><div>הגדר חיבור ל-Supabase</div></div>`;
+    document.getElementById('topbar-stats').textContent='לא מחובר';
+    return;
+  }
+  try{
+    const r=await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?select=*&order=id.desc`,{headers:hdrs});
+    allQuestions=await r.json();
+    renderList();
+    document.getElementById('topbar-stats').textContent=`${allQuestions.length} שאלות במאגר`;
+  }catch(e){showToast('שגיאה בטעינה','error');}
+}
+
+// ── Render list ───────────────────────────
+function setFilter(val,el){
+  activeFilter=val;
+  document.querySelectorAll('.filter-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active'); renderList();
+}
+
+function renderList(){
+  const search=document.getElementById('search-input').value.trim().toLowerCase();
+  let filtered=allQuestions.filter(q=>{
+    if(activeFilter!=='all'&&String(q.difficulty)!==activeFilter)return false;
+    if(search&&!q.question_text.toLowerCase().includes(search))return false;
+    return true;
+  });
+  const list=document.getElementById('questions-list');
+  if(!filtered.length){list.innerHTML=`<div class="empty-list"><div class="emoji">🔍</div><div>אין שאלות להצגה</div></div>`;return;}
+  list.innerHTML=filtered.map(q=>{
+    const [cls,lbl]=diffMap[q.difficulty]||diffMap[1];
+    const correctText=q[optKeys[q.correct_answer]]||q.correct_answer;
+    const thumbHtml=q.illustration
+      ?`<div class="q-thumb">${q.illustration}</div>`
+      :`<div class="q-thumb"><div class="no-thumb">🔢</div></div>`;
+    return`<div class="q-item" id="qi-${q.id}">
+      ${thumbHtml}
+      <div class="q-body">
+        <div class="q-text">${escHtml(q.question_text)}</div>
+        <div class="q-meta">
+          <span class="q-tag ${cls}">${lbl}</span>
+          <span class="q-answer">✅ ${escHtml(correctText)}</span>
+        </div>
+      </div>
+      <div class="q-actions">
+        <button class="btn btn-edit" onclick="startEdit(${q.id})">✏️</button>
+        <button class="btn btn-danger" onclick="deleteQ(${q.id})">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── Generate illustration via Edge Function ─
+async function generateIllustration(questionText){
+  try{
+    const r=await fetch(`${SUPABASE_URL}/functions/v1/generate-illustration`,{
+      method:'POST',
+      headers:{
+        'Authorization':`Bearer ${SUPABASE_KEY}`,
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({question:questionText})
+    });
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    const data=await r.json();
+    return data.svg||null;
+  }catch(e){
+    console.error('Illustration generation failed:',e);
+    return null;
+  }
+}
+
+// ── Form ──────────────────────────────────
+function getFormData(){
+  return{
+    question_text:document.getElementById('f-question').value.trim(),
+    option_a:document.getElementById('f-a').value.trim(),
+    option_b:document.getElementById('f-b').value.trim(),
+    option_c:document.getElementById('f-c').value.trim(),
+    option_d:document.getElementById('f-d').value.trim(),
+    correct_answer:document.getElementById('f-correct').value,
+    difficulty:parseInt(document.querySelector('input[name="diff"]:checked').value)
+  };
+}
+
+function validate(d){
+  if(!d.question_text){showToast('נא להזין שאלה','error');return false;}
+  if(!d.option_a||!d.option_b||!d.option_c||!d.option_d){showToast('נא למלא את כל 4 האפשרויות','error');return false;}
+  if(!d.correct_answer){showToast('נא לבחור תשובה נכונה','error');return false;}
+  return true;
+}
+
+async function submitForm(){
+  if(!configured){showToast('הגדר חיבור ל-Supabase תחילה','error');return;}
+  const data=getFormData();
+  if(!validate(data))return;
+
+  const btn=document.getElementById('submit-btn');
+  btn.disabled=true;
+  btn.textContent='⏳ יוצר איור...';
+
+  // Show generating state in preview
+  document.getElementById('ill-preview').innerHTML=`<div class="ill-generating"><div class="ill-spinner"></div><span>Claude מצייר...</span></div>`;
+
+  // Generate illustration
+  const svg=await generateIllustration(data.question_text);
+  if(svg){
+    data.illustration=svg;
+    document.getElementById('ill-preview').innerHTML=svg;
+  }else{
+    document.getElementById('ill-preview').innerHTML=`<div class="ill-placeholder">⚠️ לא הצליח ליצור איור</div>`;
+    showToast('לא הצליח ליצור איור, שומר ללא איור','error');
+  }
+
+  btn.textContent='⏳ שומר...';
+
+  const editId=document.getElementById('edit-id').value;
+  try{
+    if(editId){
+      const r=await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?id=eq.${editId}`,{method:'PATCH',headers:hdrs,body:JSON.stringify(data)});
+      if(!r.ok)throw new Error();
+      showToast('✅ השאלה עודכנה!');
+    }else{
+      const r=await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`,{method:'POST',headers:hdrs,body:JSON.stringify(data)});
+      if(!r.ok)throw new Error();
+      showToast('✅ השאלה נוספה!');
+    }
+    resetForm();
+    await loadQuestions();
+  }catch{showToast('שגיאה בשמירה','error');}
+  finally{btn.disabled=false;btn.textContent=editId?'💾 שמור שינויים':'➕ הוסף שאלה (+ צור איור)';}
+}
+
+function resetForm(){
+  ['f-question','f-a','f-b','f-c','f-d'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-correct').value='';
+  document.querySelector('input[name="diff"][value="1"]').checked=true;
+  document.getElementById('edit-id').value='';
+  document.getElementById('form-title').textContent='➕ הוספת שאלה חדשה';
+  document.getElementById('submit-btn').textContent='➕ הוסף שאלה (+ צור איור)';
+  document.getElementById('cancel-btn').style.display='none';
+  document.getElementById('ill-preview').innerHTML='<div class="ill-placeholder">🖼️</div>';
+  document.querySelectorAll('.q-item').forEach(el=>el.classList.remove('editing'));
+}
+
+function cancelEdit(){resetForm();}
+
+function startEdit(id){
+  const q=allQuestions.find(x=>x.id===id);
+  if(!q)return;
+  document.getElementById('f-question').value=q.question_text;
+  document.getElementById('f-a').value=q.option_a;
+  document.getElementById('f-b').value=q.option_b;
+  document.getElementById('f-c').value=q.option_c;
+  document.getElementById('f-d').value=q.option_d;
+  document.getElementById('f-correct').value=q.correct_answer;
+  document.querySelector(`input[name="diff"][value="${q.difficulty}"]`).checked=true;
+  document.getElementById('edit-id').value=id;
+  document.getElementById('form-title').textContent='✏️ עריכת שאלה';
+  document.getElementById('submit-btn').textContent='💾 שמור שינויים';
+  document.getElementById('cancel-btn').style.display='inline-flex';
+  if(q.illustration)document.getElementById('ill-preview').innerHTML=q.illustration;
+  document.querySelectorAll('.q-item').forEach(el=>el.classList.remove('editing'));
+  const el=document.getElementById(`qi-${id}`);
+  if(el){el.classList.add('editing');el.scrollIntoView({behavior:'smooth',block:'nearest'});}
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+async function deleteQ(id){
+  if(!confirm('למחוק את השאלה הזו?'))return;
+  try{
+    const r=await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}?id=eq.${id}`,{method:'DELETE',headers:hdrs});
+    if(!r.ok)throw new Error();
+    showToast('🗑️ השאלה נמחקה');
+    await loadQuestions();
+  }catch{showToast('שגיאה במחיקה','error');}
+}
+
+loadQuestions();
+</script>
+</body>
+</html>
